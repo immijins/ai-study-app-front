@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import axios from 'axios';
 
 // 현재 IP 주소
-const PC_IP = '192.168.45.15';
+const PC_IP = '192.168.45.229';
 
 // 실행 환경(웹 vs 앱)에 따라 URL 자동 변경
 const BASE_URL = Platform.OS === 'web'

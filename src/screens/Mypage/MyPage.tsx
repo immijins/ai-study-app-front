@@ -1,13 +1,18 @@
 import React from "react";
 import { StyleSheet, View, Text, TouchableOpacity, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useUserStore } from '../../store/useUserStore';
 
 export default function MyPage() {
+    const profile = useUserStore((state) => state.profile);
     const navigation = useNavigation();
 
     // 이동할 메뉴 리스트 정의
     const menuList = [
-        {id: '1', title: '카테고리', screen: 'CategoryPage'}
+        {id: '1', title: '카테고리', screen: 'CategoryPage'},
+        {id: '2', title: '공부시간 통계', screen: 'StudyGrassPage'},
+        {id: '3', title: '플래너 달성률', screen: 'DailyTaskStatsPage'},
+        {id: '4', title: '디데이', screen: 'DdayPage'}
     ];
 
     // 각 리스트 항목을 렌더링하는 함수
@@ -23,6 +28,11 @@ export default function MyPage() {
 
     return (
         <View style={styles.container}>
+            <View>
+                <Text>{profile?.nickname}님</Text>
+                <Text>현재 레벨: Lv. {profile?.level}</Text>
+            </View>
+
             {/* 메뉴 리스트 렌더링 */}
             <FlatList
                 data={menuList}
