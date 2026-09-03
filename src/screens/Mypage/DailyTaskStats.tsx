@@ -2,13 +2,9 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Text } from "react-native";
 import { api } from "../../api/api";
 import { ScrollView } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-// 데이터 타입
-interface TaskStat {
-    planDate: string | number[];
-    totalCount: number;
-    completedCount: number;
-}
+import { TaskStat } from '../../types/TaskStat';
 
 export default function DailyTaskStats() {
     const [stats, setStats] = useState<TaskStat[]>([]);
@@ -27,89 +23,121 @@ export default function DailyTaskStats() {
     }, []);
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>최근 7일 달성률</Text>
+        <SafeAreaView
+            style={styles.layout}
+            edges={['left', 'right']}
+        >
+            <View style={styles.container}>
+                <View style={styles.topTitle}>
+                    <Text style={styles.title}>
+                        최근 7일 플래너 달성률
+                    </Text>
+                </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {stats.map((stat, index) => {
-                    // 날짜 포맷
-                    let dateText = "";
-                    if (Array.isArray(stat.planDate)) {
-                        dateText = `${stat.planDate[1]}/${stat.planDate[2]}`;
-                    } else if (typeof stat.planDate === 'string') {
-                        const parts = stat.planDate.split('-');
-                        dateText = `${parseInt(parts[1])}/${parseInt(parts[2])}`;
-                    }
+                <ScrollView 
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
+                >
+                    {stats.map((stat, index) => {
+                        // 날짜 포맷
+                        let dateText = "";
+                        if (Array.isArray(stat.planDate)) {
+                            dateText = `${stat.planDate[1]}/${stat.planDate[2]}`;
+                        } else if (typeof stat.planDate === 'string') {
+                            const parts = stat.planDate.split('-');
+                            dateText = `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+                        }
 
-                    // 퍼센트 계산
-                    const percentage = stat.totalCount === 0
-                        ? 0 
-                        : Math.round((stat.completedCount / stat.totalCount) * 100);
-                    
-                    return (
-                        <View key={index} style={styles.card}>
-                            <Text style={styles.dateText}>{dateText}</Text>
+                        // 퍼센트 계산
+                        const percentage = stat.totalCount === 0
+                            ? 0 
+                            : Math.round((stat.completedCount / stat.totalCount) * 100);
                         
-                            {/* 퍼센트 텍스트 */}
-                            <Text style={styles.percentText}>{percentage}%</Text>
-                        
-                            {/* 프로그레스 바 */}
-                            <View style={styles.barBackground}>
-                                <View
-                                    style={[
-                                        styles.barFill,
-                                        { width: `${percentage}%` }
-                                    ]}
-                                >
+                        return (
+                            <View key={index} style={styles.card}>
+                                <View style={styles.cardTop}>
+                                    <Text style={styles.dateText}>{dateText}</Text>
+                            
+                                    {/* 퍼센트 텍스트 */}
                                     <Text style={styles.countText}>
-                                        {stat.completedCount} / {stat.totalCount}
+                                        {stat.completedCount} / {stat.totalCount} ({percentage}%)
                                     </Text>
                                 </View>
+                            
+                                {/* 프로그레스 바 */}
+                                <View style={styles.barBackground}>
+                                    <View
+                                        style={[
+                                            styles.barFill,
+                                            { width: `${percentage}%` }
+                                        ]}
+                                    >
+                                        
+                                    </View>
+                                </View>
                             </View>
-                        </View>
-                    );
-                })}
+                        );
+                    })}
 
-                {/* 데이터 없는 경우 */}
-                {stats.length === 0 && (
-                    <Text style={styles.emptyText}>최근 기록이 없습니다.</Text>
-                )}
-            </ScrollView>
-        </View>
+                    {/* 데이터 없는 경우 */}
+                    {stats.length === 0 && (
+                        <Text style={styles.emptyText}>최근 기록이 없습니다.</Text>
+                    )}
+                </ScrollView>
+            </View>
+        </SafeAreaView>
     )
 
 }
 
 const styles = StyleSheet.create({
-    container: {
-        backgroundColor: '#1B1B1B', // 통계 카드 배경색
-        padding: 20,
-        borderRadius: 16,
-        marginVertical: 10,
-        borderWidth: 1,
-        borderColor: '#3F4042',
+    layout: {
+        flex: 1,
+        backgroundColor: '#fff'
     },
+    container: { 
+        flex: 1, 
+        paddingLeft: 16,
+        paddingRight: 16,
+        paddingTop: 20,
+        backgroundColor: '#F8F9FA',
+        marginBottom: 50
+    },
+    topTitle: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16
+    },
+
     title: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#E9E9EA',
-        marginBottom: 15,
+        fontSize: 14,
+        color: '#333',
     },
     scrollContent: {
-        flexDirection: 'row',
-        gap: 12, // 카드 사이의 간격
+        flexDirection: 'column',
+        gap: 12
     },
+
     card: {
-        backgroundColor: '#252628',
+        width: '100%',
+        backgroundColor: '#fff',
         padding: 12,
         borderRadius: 12,
         alignItems: 'center',
-        width: 80, // 카드 하나의 너비
+        borderWidth: 1,
+        borderColor: '#Ececec'
+    },
+    cardTop: {
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'space-between'
     },
     dateText: {
-        color: '#758390',
+        color: '#999',
         fontSize: 12,
         marginBottom: 8,
+        fontWeight: '600'
     },
     percentText: {
         color: '#FFFFFF',
@@ -119,23 +147,23 @@ const styles = StyleSheet.create({
     },
     barBackground: {
         width: '100%',
-        height: 8,
-        backgroundColor: '#3F4042',
-        borderRadius: 4,
+        height: 12,
+        backgroundColor: '#dddddd',
+        borderRadius: 12,
         marginBottom: 8,
         overflow: 'hidden', // 게이지가 밖으로 삐져나가지 않게 함
     },
     barFill: {
         height: '100%',
-        backgroundColor: '#4ED464', // 잔디와 동일한 초록색
+        backgroundColor: '#60B9A6', // 잔디와 동일한 초록색
         borderRadius: 4,
     },
     countText: {
-        color: '#758390',
-        fontSize: 10,
+        color: '#60B9A6',
+        fontSize: 12,
     },
     emptyText: {
-        color: '#758390',
+        color: '#999',
         fontSize: 14,
     }
 });

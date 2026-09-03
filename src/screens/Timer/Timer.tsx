@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from "../../api/api";
+import { useUserStore } from '../../store/useUserStore';
 
 // 오늘 날짜 반환(YYYY-MM-DD)
 const getTodayKey = (): string => {
@@ -44,6 +45,8 @@ export default function Timer() {
 
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [todayTotalSeconds, setTodayTotalSeconds] = useState<number>(0);
+
+    const fetchProfile = useUserStore((state) => state.fetchProfile);
 
     // 백엔드에서 오늘 누적 공부시간 불러오기
     const loadTodayStudyTime = useCallback(async () => {
@@ -173,8 +176,9 @@ export default function Timer() {
                 { text: "취소", style: "cancel" },
                 {
                     text: "저장 및 초기화",
-                    onPress: () => {
-                        saveStudyTime(standardSeconds);
+                    onPress: async () => {
+                        await saveStudyTime(standardSeconds);
+                        await fetchProfile();
                         setStandardSeconds(0);
                     }
                 }
@@ -372,7 +376,7 @@ const styles = StyleSheet.create({
 
     tabContainer: {
         flexDirection: "row",
-        borderRadius: 16,
+        borderRadius: 30,
         padding: 4,
         backgroundColor: "#252628",
     },
@@ -380,23 +384,19 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 50,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: 50,
         alignItems: "center",
         justifyContent: "center",
     },
     activeTab: {
         backgroundColor: "#3F4042",
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
     },
     tabText: {
         fontSize: 15,
         color: "#E9E9EA",
     },
     activeTabText: {
-        color: "#7eb7ec",
+        color: "#60B9A6",
         fontWeight: "600",
     },
     todaySummaryCard: {
@@ -463,17 +463,17 @@ const styles = StyleSheet.create({
     },
     buttonGroup: {
         flexDirection: "row",
-        gap: 12,
+        gap: 8,
         width: "100%",
     },
     actionButton: {
         flex: 1,
         paddingVertical: 14,
-        borderRadius: 10,
+        borderRadius: 30,
         alignItems: "center",
     },
     startButton: {
-        backgroundColor: "#5AA9E6",
+        backgroundColor: "#60B9A6",
     },
     pauseButton: {
         backgroundColor: "#F6C453",

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View, ActivityIndicator, FlatList, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, Text, View, ActivityIndicator, FlatList, TextInput, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform  } from 'react-native';
 import { api } from '../../api/api';
 import { Category } from '../../types/Category';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CategoryPage() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -92,134 +94,163 @@ export default function CategoryPage() {
     }
 
     return (
-        <View style={styles.container}>
-            <Text>카테고리 목록</Text>
-
-            {/* 입력 영역 */}
-            <View style={styles.inputContainer}>
-                <TextInput 
-                    style={styles.input}
-                    placeholder="카테고리를 입력하세요"
-                    value={inputText}
-                    onChangeText={setInputText}
-                />
-                <TouchableOpacity style={styles.addButton} onPress={handleAddCategories}>
-                    <Text style={styles.addButtonText}>추가</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* 목록 영역 */}
-            <FlatList
-                data={categories}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({item}: {item:Category}) => (
-                    <View style={styles.listItem}>
-                        {/* 카테고리 수정 시 */}
-                        {editingId === item.id ? (
-                            <>
-                                <TextInput
-                                    style={styles.input}
-                                    value={editName}
-                                    onChangeText={setEditName}
-                                    autoFocus={true} // 키보드 자동 활성화
-                                />
-                                <View style={styles.buttonGroup}>
-                                    <TouchableOpacity onPress={() => handleModifyCategories(item.id, editName)}>
-                                        <Text style={styles.saveText}>저장</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => setEditingId(null)}>
-                                        <Text style={styles.cancelText}>취소</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
-                        ) : (
-                            <>
-                                <Text style={styles.categoryNameText}>{item.categoryName}</Text>
-                                <View style={styles.buttonGroup}>
-                                    <TouchableOpacity onPress={() => startEditing(item.id, item.categoryName)}>
-                                        <Text style={styles.editText}>수정</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteCategories(item.id)}>
-                                        <Text style={styles.deleteButtonText}>삭제</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
-                        )}
-                    </View>
-                )}
+        <SafeAreaView 
+            style={styles.layout}
+            edges={['left', 'right']}
+        >
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}    
             >
+                <View style={styles.container}>
+                    {/* 입력 영역 */}
+                    <View style={styles.cateInputList}>
+                        <Text style={styles.cateTit}>카테고리 추가</Text>
 
-            </FlatList>
-        </View>
+                        <View style={styles.inputContainer}>
+                            <TextInput 
+                                style={styles.cateInput}
+                                placeholder="카테고리를 입력하세요"
+                                value={inputText}
+                                onChangeText={setInputText}
+                            />
+                            <TouchableOpacity style={styles.addButton} onPress={handleAddCategories}>
+                                <Ionicons name="arrow-up" size={24} color="white" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    <View style={styles.cateList}>
+                        <Text style={styles.cateTit}>카테고리 목록</Text>
+                        
+                        {/* 목록 영역 */}
+                        <FlatList
+                            data={categories}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={({item}: {item:Category}) => {
+                                const isProtected = item.categoryName === '기타' || item.categoryName === 'ai 추천';
+
+                                return (
+                                    <View style={styles.listItem}>
+                                    {/* 카테고리 수정 시 */}
+                                    {editingId === item.id ? (
+                                        <>
+                                            <TextInput
+                                                style={styles.editInput}
+                                                value={editName}
+                                                onChangeText={setEditName}
+                                                autoFocus={true} // 키보드 자동 활성화
+                                            />
+                                            <View style={styles.buttonGroup}>
+                                                <TouchableOpacity onPress={() => handleModifyCategories(item.id, editName)}>
+                                                    <Ionicons name="checkmark-circle-outline" size={24} color="#FFA683" />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity onPress={() => setEditingId(null)}>
+                                                    <Ionicons name="enter-outline" size={24} color="#aaa" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Text style={styles.categoryNameText}>{item.categoryName}</Text>
+                                            <View style={styles.buttonGroup}>
+                                                {!isProtected ? (
+                                                    <>
+                                                        <TouchableOpacity onPress={() => startEditing(item.id, item.categoryName)}>
+                                                            <Ionicons name="pencil-outline" size={20} color="#999" />
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity onPress={() => handleDeleteCategories(item.id)}>
+                                                            <Ionicons name="close-outline" size={24} color="#FF0000" />
+                                                        </TouchableOpacity>
+                                                    </>) : (
+                                                        <Ionicons name="lock-closed-outline" size={20} color="#ddd" />
+                                                )}
+                                            </View>
+                                        </>
+                                    )}
+                                </View>
+                                )
+                            }}
+                        >
+
+                        </FlatList>
+                    </View>
+                </View>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     )
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 20, paddingTop: 60, backgroundColor: '#F8F9FA' },
-    inputContainer: {
-        flexDirection: 'row',
-        marginBottom: 20
-    },
-    input: {
+    layout: {
         flex: 1,
-        borderWidth: 1,
-        borderRadius: 8,
-        paddingHorizontal: 15,
-        height: 48,
         backgroundColor: '#fff'
     },
+    container: { 
+        flex: 1, 
+        paddingLeft: 16,
+        paddingRight: 16,
+        paddingTop: 20,
+        backgroundColor: '#F8F9FA',
+    },
+    cateInputList: {
+        flexDirection: 'column',
+        gap: 10,
+    },
+    cateTit: {
+        fontSize: 14,
+        color: "#888",
+        marginBottom: 5
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#D9D9D9',
+        paddingLeft: 8,
+        paddingRight: 8,
+        borderRadius: 50
+    },
+    cateInput: {
+        flex: 1,
+        height: 50,
+    },
     addButton: {
-        backgroundColor: '#4A90E2',
+        backgroundColor: '#60B9A6',
+        height: 35,
+        width: 35,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        marginLeft: 10
+        borderRadius: 50
     },
-    addButtonText: {
-        color: '#fff',
-        fontWeight: 'bold',
+
+    // 목록 영역
+    cateList: {
+        marginTop: 30,
+
     },
     listItem: {
         flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        borderRadius: 12,
+        marginBottom: 12,
         backgroundColor: '#fff',
-        padding: 15,
-        borderRadius: 8,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#eee'
+        justifyContent: 'space-between',
+        height: 55,
+        alignItems: 'center',
+        paddingLeft: 12,
+        paddingRight: 12
     },
-    categoryNameText: {
-        fontSize: 16,
-        color: '#333'
-    },
+
     buttonGroup: {
         flexDirection: 'row',
-        gap: 12
+        gap: 10,
+        alignItems: 'center'
     },
-    editText: {
-        color: '#007AFF',
+    categoryNameText: {
+        color: "#333",
         fontSize: 14
-    },
-    saveText: {
-        color: "#ff8000",
-        fontSize: 14
-    },
-    cancelText: {
-        color: "#868E96",
-        fontSize: 14
-    },
-    textContainer: { flex: 1 },
-    deleteButton: {
-        backgroundColor: '#FF4D4D',
-        padding: 8,
-        borderRadius: 6
-    },
-    deleteButtonText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: 'bold'
     }
 })

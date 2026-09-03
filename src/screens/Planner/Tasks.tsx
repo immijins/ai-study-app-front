@@ -1,5 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, SectionList, ScrollView, TextInput, Alert, Modal } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, SectionList, ScrollView, TextInput, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+
 import { api } from '../../api/api';
 import { Task } from '../../types/Task';
 import { Category } from '../../types/Category';
@@ -94,9 +98,11 @@ export default function Tasks() {
     };
 
     // currentDate가 변경될 때마다 fetchTasks 실행
-    useEffect(() => {
-        fetchTasks(currentDate);
-    }, [currentDate]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchTasks(currentDate);
+        }, [currentDate])
+    );
 
     // 카테고리순으로 정렬
     const sections = useMemo(() => {
@@ -209,14 +215,16 @@ export default function Tasks() {
 
     // 리스트 항목 렌더링
     const renderTaskItem = ({item}: {item: Task}) => (
-        <View style={styles.taskItem}>
+        <View style={styles.taskItemBox}>
             <View style={styles.taskItem}>
                 {/* 체크박스 영역 */}
                 <TouchableOpacity 
                     style={[styles.checkbox, item.isComplete && styles.checkboxChecked]} 
                     onPress={() => handleToggleComplete(item.id)}
                     activeOpacity={0.7}
-                />
+                >
+                    <Ionicons name="checkmark-sharp" size={20} color="white" />
+                </TouchableOpacity>
                 <Text style={[styles.taskTitle, item.isComplete && styles.taskTitleCompleted]}>
                     {item.title}
                 </Text>
@@ -225,10 +233,10 @@ export default function Tasks() {
             {/* 우측 수정, 삭제 버튼 그룹 */}
             <View style={styles.taskActions}>
                 <TouchableOpacity onPress={() => openEditModal(item)} style={styles.actionBtn}>
-                    <Text style={styles.editBtnText}>이동</Text>
+                    <Ionicons name="ellipsis-horizontal-sharp" size={24} color="#979797" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDeleteTask(item.id)}>
-                    <Text style={styles.deleteBtnText}>삭제</Text>
+                    <Ionicons name="close-outline" size={24} color="#FF0000" />
                 </TouchableOpacity>
             </View>
         </View>
@@ -241,191 +249,256 @@ export default function Tasks() {
         </View>
     )
 
+    // 오늘 달성률 계산
+    const totalCount = tasks.length;
+    const completedCount = tasks.filter(task => task.isComplete).length;
+    const percentage = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
+
     return (
-        <View style={styles.container}>
-            {/* 상단 날짜 이동바 */}
-            <View style={styles.dateSelector}>
-                <TouchableOpacity onPress={handlePrevDay} style={styles.arrowButton}>
-                    <Text style={styles.arrowText}>{'<'}</Text>
-                </TouchableOpacity>
-
-                {/* 날짜 화면 표시 */}
-                <Text style={styles.dateText}>{formatDateToYYYYMMDD(currentDate)}</Text>
-
-                <TouchableOpacity onPress={handleNextDay} style={styles.arrowButton}>
-                    <Text style={styles.arrowText}>{'>'}</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* 할 일 목록 영역 */}
-            <SectionList 
-                sections={sections}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={renderTaskItem}
-                renderSectionHeader={renderSectionHeader}
-                ListEmptyComponent={<Text style={styles.emptyText}>등록된 계획이 없습니다.</Text>}
-                contentContainerStyle={styles.listContent}
-            />
-
-            {/* 하단 할 일 입력 영역 */}
-            <View style={styles.inputContainer}>
-                {/* 카테고리 선택 영역 */}
-                <ScrollView
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.categoryScroll}
-                >
-                    {
-                        categories.map((cat) => (
-                            <TouchableOpacity
-                                key={cat.id}
-                                style={[
-                                    styles.categoryChip,
-                                    selectedCategoryId === cat.id && styles.categoryChipSelected
-                                ]}
-                                onPress={() => setSelectedCategoryId(cat.id)}
-                            >
-                                <Text
-                                    style={[
-                                        styles.categoryChipText,
-                                        selectedCategoryId === cat.id && styles.categoryChipTextSelected
-                                    ]}
-                                >
-                                    {cat.categoryName}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                </ScrollView>
-
-                {/* 할 일 입력창 영역 */}
-                <View style={styles.inputRow}>
-                    <TextInput
-                        style={styles.textInput}
-                        placeholder={`${formatDateToYYYYMMDD(currentDate)} 할 일 추가...`}
-                        value={newTaskTitle}
-                        onChangeText={setNewTaskTitle}
-                        onSubmitEditing={handleAddTask}
-                        returnKeyType="done"
-                    />
-                    <TouchableOpacity style={styles.submitBtn} onPress={handleAddTask}>
-                        <Text style={styles.submitBtnText}>등록</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-
-            {/* 일정 변경 모달 */}
-            <Modal
-                visible={isModalVisible}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setIsModalVisible(false)}
+        <SafeAreaView 
+            style={styles.layout}
+            edges={['top', 'left', 'right']}
+        >
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}    
             >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>일정 및 카테고리 이동</Text>
-                        <Text style={styles.modalSubTitle}>'{editTarget?.title}'</Text>
-                    
-                        {/* 날짜 변경 영역 */}
+                <View 
+                    style={styles.container}>
+                    {/* 상단 날짜 이동바 */}
+                    <View style={styles.dateHeader}>
                         <View style={styles.dateSelector}>
-                            <TouchableOpacity onPress={() => {
-                                const prev = new Date(editDate);
-                                prev.setDate(prev.getDate() - 1);
-                                setEditDate(prev);
-                            }} style={styles.arrowButton}>
-                                <Text style={styles.arrowText}>{'<'}</Text>
+                            <TouchableOpacity onPress={handlePrevDay} style={styles.arrowButton}>
+                                <Ionicons name="chevron-back-outline" size={24} color="#999" />
                             </TouchableOpacity>
-                            <Text style={styles.dateText}>{formatDateToYYYYMMDD(editDate)}</Text>
-                            <TouchableOpacity onPress={() => {
-                                const next = new Date(editDate);
-                                next.setDate(next.getDate() + 1);
-                                setEditDate(next);
-                            }} style={styles.arrowButton}>
-                                <Text style={styles.arrowText}>{'>'}</Text>
+
+                            {/* 날짜 화면 표시 */}
+                            <Text style={styles.dateText}>{formatDateToYYYYMMDD(currentDate)}</Text>
+
+                            <TouchableOpacity onPress={handleNextDay} style={styles.arrowButton}>
+                                <Ionicons name="chevron-forward-outline" size={24} color="#999" />
                             </TouchableOpacity>
                         </View>
 
-                        {/* 카테고리 변경 영역 */}
-                        <View style={styles.modalCategoryWrap}>
-                            {categories.map((cat) => (
-                                <TouchableOpacity
-                                    key={cat.id}
+                        <View style={styles.dateProgress}>
+                            <View style={styles.progressText}>
+                                <Text style={styles.progressTit}>오늘의 달성률</Text>
+                                <Text style={styles.progressTxt}>
+                                    <Text style={styles.progressNum}>{completedCount}</Text>/{totalCount}({percentage}%)
+                                </Text>
+                            </View>
+                            {/* 프로그레스 바 */}
+                            <View style={styles.barBackground}>
+                                <View
                                     style={[
-                                        styles.categoryChip,
-                                        editCategoryId === cat.id && styles.categoryChipSelected
+                                        styles.barFill,
+                                        { width: `${percentage}%` }
                                     ]}
-                                    onPress={() => setEditCategoryId(cat.id)}
                                 >
-                                    <Text style={[
-                                        styles.categoryChipText,
-                                        editCategoryId === cat.id && styles.categoryChipTextSelected
-                                    ]}>
-                                        {cat.categoryName}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
+                                </View>
+                            </View>
                         </View>
+                    </View>
 
-                        {/* 버튼 영역 */}
-                        <View style={styles.modalButtonGroup}>
-                            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setIsModalVisible(false)}>
-                                <Text style={styles.modalBtnText}>취소</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.modalSaveBtn} onPress={handleUpdateSchedule}>
-                                <Text style={styles.modalBtnTextWhite}>저장</Text>
+                    {/* 할 일 목록 영역 */}
+                    <SectionList 
+                        sections={sections}
+                        keyExtractor={(item) => item.id.toString()}
+                        renderItem={renderTaskItem}
+                        renderSectionHeader={renderSectionHeader}
+                        ListEmptyComponent={<Text style={styles.emptyText}>오늘의 스터디 플랜을 등록해보세요!</Text>}
+                        contentContainerStyle={styles.listContent}
+                    />
+
+                    {/* 하단 할 일 입력 영역 */}
+                    <View 
+                        style={styles.inputContainer}>
+                        {/* 카테고리 선택 영역 */}
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={true}
+                            style={styles.categoryScroll}
+                        >
+                            {
+                                categories.map((cat) => (
+                                    <TouchableOpacity
+                                        key={cat.id}
+                                        style={[
+                                            styles.categoryChip,
+                                            selectedCategoryId === cat.id && styles.categoryChipSelected
+                                        ]}
+                                        onPress={() => setSelectedCategoryId(cat.id)}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.categoryChipText,
+                                                selectedCategoryId === cat.id && styles.categoryChipTextSelected
+                                            ]}
+                                        >
+                                            {cat.categoryName}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                        </ScrollView>
+
+                        {/* 할 일 입력창 영역 */}
+                        <View style={styles.inputRow}>
+                            <TextInput
+                                style={styles.textInput}
+                                placeholder={`${formatDateToYYYYMMDD(currentDate)} 의 플랜을 입력하세요.`}
+                                value={newTaskTitle}
+                                onChangeText={setNewTaskTitle}
+                                onSubmitEditing={handleAddTask}
+                                returnKeyType="done"
+                            />
+                            <TouchableOpacity style={styles.submitBtn} onPress={handleAddTask}>
+                                <Ionicons name="arrow-up" size={24} color="white" />
                             </TouchableOpacity>
                         </View>
                     </View>
-                </View>
-            </Modal>
-        </View>
+                
+
+                {/* 일정 변경 모달 */}
+                <Modal
+                    visible={isModalVisible}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setIsModalVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>수정하기</Text>
+                            <View style={styles.modalList}>
+                                <View style={styles.modalListBox}>
+                                    <Text style={styles.modalSubTit}>항목명</Text>
+                                    <View style={styles.modalTxtBox}>
+                                        <Text>{editTarget?.title}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.modalListBox}>
+                                    <Text style={styles.modalSubTit}>날짜 변경</Text>
+                                    <View style={styles.modalDateBox}>
+                                        {/* 날짜 변경 영역 */}
+                                        <View style={styles.modalDateSelector}>
+                                            <TouchableOpacity onPress={() => {
+                                                const prev = new Date(editDate);
+                                                prev.setDate(prev.getDate() - 1);
+                                                setEditDate(prev);
+                                            }} style={styles.arrowButton}>
+                                                <Ionicons name="chevron-back-outline" size={24} color="#999" />
+                                            </TouchableOpacity>
+                                            <Text style={styles.dateText}>{formatDateToYYYYMMDD(editDate)}</Text>
+                                            <TouchableOpacity onPress={() => {
+                                                const next = new Date(editDate);
+                                                next.setDate(next.getDate() + 1);
+                                                setEditDate(next);
+                                            }} style={styles.arrowButton}>
+                                                <Ionicons name="chevron-forward-outline" size={24} color="#999" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </View>
+                                <View style={styles.modalListBox}>
+                                    <Text style={styles.modalSubTit}>카테고리 변경</Text>
+                                    {/* 카테고리 변경 영역 */}
+                                    <ScrollView 
+                                        horizontal
+                                        showsHorizontalScrollIndicator={true}
+                                        style={styles.modalCategoryWrap}>
+                                        {categories.map((cat) => (
+                                            <TouchableOpacity
+                                                key={cat.id}
+                                                style={[
+                                                    styles.categoryChip,
+                                                    editCategoryId === cat.id && styles.categoryChipSelected
+                                                ]}
+                                                onPress={() => setEditCategoryId(cat.id)}
+                                            >
+                                                <Text style={[
+                                                    styles.categoryChipText,
+                                                    editCategoryId === cat.id && styles.categoryChipTextSelected
+                                                ]}>
+                                                    {cat.categoryName}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                </View>
+                            </View>
+                        
+                            {/* 버튼 영역 */}
+                            <View style={styles.modalButtonGroup}>
+                                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setIsModalVisible(false)}>
+                                    <Text style={styles.modalBtnText}>취소</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.modalSaveBtn} onPress={handleUpdateSchedule}>
+                                    <Text style={styles.modalBtnTextWhite}>저장</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+            </View>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     )
 
 }
 
 const styles = StyleSheet.create({
-container: {
+    layout: {
         flex: 1,
-        backgroundColor: '#F8F9FA',
+        backgroundColor: '#ffffff',
     },
+    container: {
+        flex: 1,
+    },
+    dateHeader: {
+        backgroundColor: '#ffffff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#ECECEC',
+        paddingLeft: 16,
+        paddingRight: 16,
+        paddingBottom: 16
+    },
+
+
     dateSelector: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
         paddingVertical: 20,
-        backgroundColor: '#FFFFFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E9ECEF',
     },
     arrowButton: {
         paddingHorizontal: 20,
     },
-    arrowText: {
-        fontSize: 20,
-        color: '#495057',
-        fontWeight: 'bold',
-    },
     dateText: {
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: 'bold',
-        color: '#212529',
+        color: '#444',
         width: 120,
         textAlign: 'center',
     },
     listContent: {
         padding: 20,
+        flex: 1,
+        backgroundColor: '#EBF1F5',
+    },
+    taskItemBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        height: 55,
+        borderRadius: 12,
+        paddingLeft: 12,
+        paddingRight: 12,
+        marginBottom: 15
     },
     taskItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: '#FFFFFF',
-        padding: 15,
-        borderRadius: 8,
-        marginBottom: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2, // 안드로이드 그림자
+        flex: 1
     },
     tastLeft: {
         flexDirection: 'row',
@@ -437,12 +510,14 @@ container: {
         height: 24,
         borderRadius: 12,
         borderWidth: 2,
-        borderColor: '#CED4DA',
+        borderColor: '#FFB497',
         marginRight: 12,
+        alignItems: 'center',
+        justifyContent: 'center'
     },
     checkboxChecked: {
-        backgroundColor: '#4DABF7',
-        borderColor: '#4DABF7',
+        backgroundColor: '#FFB497',
+        borderColor: '#FFB497',
     },
     taskTitle: {
         fontSize: 16,
@@ -458,78 +533,115 @@ container: {
         marginTop: 40,
     },
     sectionHeader: {
-        backgroundColor: '#F8F9FA', // 배경색과 맞춰서 자연스럽게
-        paddingVertical: 8,
-        marginTop: 10,
-        marginBottom: 5,
+        marginBottom: 10
     },
     sectionHeaderText: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: '#495057',
+        color: '#444',
     },
+
+    // 하단 할 일 입력 영역
     inputContainer: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#ffffff',
         padding: 16,
         borderTopWidth: 1,
-        borderTopColor: '#E9ECEF',
+        borderTopColor: '#ECECEC',
+        marginBottom: 22
     },
     categoryScroll: {
-        marginBottom: 12,
+        marginBottom: 10,
+        flexDirection: 'row'
     },
     categoryChip: {
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        backgroundColor: '#F1F3F5',
-        borderRadius: 20,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        backgroundColor: '#fff',
+        borderRadius: 8,
         marginRight: 8,
+        borderWidth: 1,
+        borderColor: '#d2d2d2'
     },
     categoryChipSelected: {
-        backgroundColor: '#4DABF7', // 선택된 카테고리 색상
-    },
-    categoryChipText: {
-        fontSize: 14,
-        color: '#495057',
+        backgroundColor: '#60B9A6',
+        borderColor: '#60B9A6'
     },
     categoryChipTextSelected: {
         color: '#FFFFFF',
         fontWeight: 'bold',
     },
+    categoryChipText: {
+        fontSize: 13,
+        color: '#c1c1c1'
+    },
+    
+    // 입력창 영역
     inputRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: '#F9F9F9',
+        borderWidth: 1,
+        borderRadius: 50,
+        paddingLeft: 10,
+        paddingRight: 6,
+        borderColor: '#D9D9D9'
     },
     textInput: {
         flex: 1,
-        height: 44,
-        backgroundColor: '#F8F9FA',
-        borderWidth: 1,
-        borderColor: '#CED4DA',
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        marginRight: 10,
-        fontSize: 15,
+        height: 45
     },
     submitBtn: {
-        backgroundColor: '#4DABF7',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 8,
+        backgroundColor: '#60B9A6',
+        height: 35,
+        width: 35,
         justifyContent: 'center',
         alignItems: 'center',
+        borderRadius: 50
     },
     submitBtnText: {
         color: '#FFFFFF',
-        fontWeight: 'bold',
-        fontSize: 15,
+        
     },
     taskActions: {
         flexDirection: 'row',
-        gap: 8,
+        alignItems: 'center',
+        gap: 5
     },
-    actionBtn: { padding: 4 },
-    editBtnText: { color: '#4DABF7', fontSize: 13 },
-    deleteBtnText: { color: '#FF6B6B', fontSize: 13 },
+
+    // 오늘의 달성률
+    dateProgress: {
+        flexDirection: 'column',
+        gap: 10,
+    },
+    progressText: {
+        flexDirection: 'row',
+        justifyContent: 'space-between'
+    },
+    progressTit: {
+        color: '#666',
+    },
+    progressTxt: {
+        color: '#666'
+    },
+    progressNum: {
+        color: '#60B9A6',
+        fontWeight: 'bold'
+    },
+
+    // 프로그레스 바
+    barBackground: {
+        width: '100%',
+        height: 15,
+        backgroundColor: '#EFEFEF',
+        borderRadius: 20,
+        overflow: 'hidden'
+    },
+    barFill: {
+        height: '100%',
+        backgroundColor: '#60B9A6',
+        borderRadius: 20
+    },
+
 
     // 모달 스타일
     modalOverlay: {
@@ -541,21 +653,86 @@ container: {
     modalContent: {
         width: '85%',
         backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 20,
+        borderRadius: 12
     },
-    modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 4, textAlign: 'center' },
-    modalSubTitle: { fontSize: 14, color: '#868E96', marginBottom: 20, textAlign: 'center' },
-    modalCategoryWrap: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
+    modalTitle: {
+        fontSize: 18,
+        textAlign: 'center',
+        color: '#444',
+        fontWeight: 'bold',
+        marginBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ECECEC',
+        padding: 14
+    },
+    modalList: {
+        flexDirection: 'column',
+        gap: 15,
+        paddingLeft: 16,
+        paddingRight: 16,
+        paddingTop: 5
+    },
+    modalSubTit: {
+        fontSize: 14,
+        color: '#666'
+    },
+    modalTxtBox: {
+        width: '100%',
+        height: 45,
+        borderWidth: 1,
+        borderColor: '#ECECEC',
+        backgroundColor: '#f4f4f4',
+        borderRadius: 8,
         justifyContent: 'center',
-        gap: 8,
-        marginVertical: 20,
+        paddingLeft: 12,
+        paddingRight: 12
     },
-    modalButtonGroup: { flexDirection: 'row', gap: 10 },
-    modalCancelBtn: { flex: 1, padding: 12, backgroundColor: '#E9ECEF', borderRadius: 8, alignItems: 'center' },
-    modalSaveBtn: { flex: 1, padding: 12, backgroundColor: '#4DABF7', borderRadius: 8, alignItems: 'center' },
-    modalBtnText: { fontSize: 16, color: '#495057' },
-    modalBtnTextWhite: { fontSize: 16, color: '#fff', fontWeight: 'bold' },
+    modalListBox: {
+        flexDirection: 'column',
+        gap: 10,
+    },
+    modalDateBox: {
+        flexDirection: 'column',
+        gap: 5
+    },
+    modalDateSelector: {
+        flexDirection: 'row',
+        height: 35,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    modalCategoryWrap: {
+        flexWrap: 'wrap'
+    },
+    modalButtonGroup: {
+        flexDirection: 'row',
+        padding: 16,
+        gap: 10,
+        marginTop: 10
+    },
+    modalCancelBtn: {
+        flex: 1,
+        height: 45,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 60,
+        backgroundColor: '#f9f9f9'
+    },
+    modalBtnText: {
+        color: '#888'
+    },
+    modalSaveBtn: {
+        flex: 1,
+        height: 45,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 60,
+        backgroundColor: '#FF7467',
+    },
+    modalBtnTextWhite: {
+        color: '#fff'
+    }
+
 })
